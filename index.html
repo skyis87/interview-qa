@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>面接QA管理システム - 鄭宇翔</title>
+    <style>
+        :root {
+            --bg-color: #f7f9fa;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --primary-color: #2b6cb0;
+            --primary-hover: #2c5282;
+            --danger-color: #e53e3e;
+            --danger-hover: #c53030;
+            --success-color: #38a169;
+            --text-color: #2d3748;
+            --text-muted: #718096;
+            --tag-bg: #edf2f7;
+            --highlight-bg: #fefcbf;
+        }
+
+        body.dark-mode {
+            --bg-color: #1a202c;
+            --card-bg: #2d3748;
+            --border-color: #4a5568;
+            --primary-color: #4299e1;
+            --primary-hover: #3182ce;
+            --text-color: #edf2f7;
+            --text-muted: #a0aec0;
+            --tag-bg: #4a5568;
+            --highlight-bg: #744210;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-color); line-height: 1.5; padding-bottom: 60px; transition: background 0.3s; }
+
+        header {
+            position: sticky; top: 0; z-index: 100;
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .header-container { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        select, input[type="text"], input[type="number"] { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; outline: none; background-color: var(--card-bg); color: var(--text-color); }
+
+        .btn { padding: 8px 14px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px; }
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-outline { background-color: transparent; border: 1px solid var(--border-color); color: var(--text-color); }
+        .btn-outline:hover { background-color: var(--tag-bg); }
+        .btn-danger { background-color: var(--danger-color); color: white; }
+
+        .progress-bar-container { width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-top: 8px; }
+        .progress-bar { height: 100%; background: var(--success-color); width: 0%; transition: width 0.3s; }
+
+        .container { max-width: 1000px; margin: 20px auto; padding: 0 16px; }
+
+        .qa-card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+        .qa-header { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+        .qa-title-box { display: flex; align-items: center; gap: 10px; flex: 1; }
+        .star-btn { cursor: pointer; font-size: 18px; color: #cbd5e0; }
+        .star-btn.starred { color: #f6e05e; }
+
+        .qa-body { display: none; padding: 16px; border-top: 1px solid var(--border-color); background-color: rgba(0,0,0,0.02); }
+        .qa-card.open .qa-body { display: block; }
+
+        .answer-text { font-size: 14px; line-height: 1.7; white-space: pre-wrap; margin-bottom: 12px; }
+        .answer-editor { width: 100%; min-height: 120px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; display: none; background: var(--card-bg); color: var(--text-color); }
+
+        .badge { padding: 2px 8px; border-radius: 12px; font-size: 11px; }
+        .badge-cat { background-color: var(--tag-bg); }
+
+        /* Modal */
+        .modal-backdrop { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; }
+        .modal-backdrop.active { display: flex; }
+        .modal { background: var(--card-bg); padding: 24px; border-radius: 8px; width: 90%; max-width: 500px; }
+
+        @media print {
+            header, .action-bar, .info-banner { display: none !important; }
+            .qa-body { display: block !important; }
+            .qa-card { break-inside: avoid; border: 1px solid #ccc; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-container">
+            <select id="categorySelect" onchange="filterData()">
+                <option value="すべて">すべて</option>
+                <option value="★ お気に入り">★ お気に入り</option>
+                <option value="自己紹介">自己紹介</option>
+                <option value="稼働・条件">稼働・条件</option>
+                <option value="プロジェクト">プロジェクト</option>
+                <option value="設計">設計</option>
+                <option value="Java">Java</option>
+                <option value="SQL・DB">SQL・DB</option>
+                <option value="テスト">テスト</option>
+                <option value="ツール">ツール</option>
+                <option value="保守">保守</option>
+                <option value="實務">實務</option>
+                <option value="逆質問">逆質問</option>
+            </select>
+
+            <input type="text" id="searchInput" style="flex:1;" placeholder="質問・キーワード検索" oninput="filterData()">
+
+            <button class="btn btn-primary" onclick="randomQuestion()">🎲 模擬練習</button>
+            <button class="btn btn-outline" onclick="exportData()">📤 バックアップ</button>
+            <button class="btn btn-outline" onclick="importData()">📥 復元</button>
+            <button class="btn btn-outline" onclick="toggleDarkMode()">🌓 Mode</button>
+            <button class="btn btn-outline" onclick="window.print()">🖨️️ 印刷</button>
+            <button class="btn btn-outline" onclick="openAddModal()">＋ 追加</button>
+        </div>
+        <div class="progress-bar-container">
+            <div id="progressBar" class="progress-bar"></div>
+        </div>
+    </header>
+
+    <div class="container" id="qaList"></div>
+
+    <!-- Modal for Random Practice -->
+    <div id="randomModal" class="modal-backdrop">
+        <div class="modal">
+            <h3 style="margin-bottom:10px;">🎲 模擬面接質問</h3>
+            <div id="randomNum" style="font-size:12px; color:var(--text-muted);"></div>
+            <h2 id="randomTitle" style="font-size:18px; margin: 15px 0;"></h2>
+            <div id="randomAnswer" style="display:none; font-size:14px; margin-bottom:15px; white-space:pre-wrap; background:rgba(0,0,0,0.05); padding:10px; border-radius:6px;"></div>
+            <div style="display:flex; justify-content:space-between;">
+                <button class="btn btn-outline" onclick="toggleRandomAnswer()">回答を表示/非表示</button>
+                <div>
+                    <button class="btn btn-outline" onclick="closeRandomModal()">閉じる</button>
+                    <button class="btn btn-primary" onclick="randomQuestion()">次の質問</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Adding QA -->
+    <div id="addModal" class="modal-backdrop">
+        <div class="modal">
+            <h3>新規質問を追加</h3>
+            <div style="display:flex; gap:10px; margin:10px 0;">
+                <div style="width:120px;">
+                    <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:4px;">挿入番号 (Q)</label>
+                    <input type="number" id="newId" style="width:100%;" min="1">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:4px;">質問タイトル</label>
+                    <input type="text" id="newTitle" placeholder="質問タイトル" style="width:100%;">
+                </div>
+            </div>
+            <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:4px;">カテゴリ</label>
+            <select id="newCat" style="width:100%; margin-bottom:10px;">
+                <option value="自己紹介">自己紹介</option>
+                <option value="稼働・条件">稼働・条件</option>
+                <option value="プロジェクト">プロジェクト</option>
+                <option value="設計">設計</option>
+                <option value="Java">Java</option>
+                <option value="SQL・DB">SQL・DB</option>
+                <option value="テスト">テスト</option>
+                <option value="ツール">ツール</option>
+                <option value="保守">保守</option>
+                <option value="實務">實務</option>
+                <option value="逆質問">逆質問</option>
+            </select>
+            <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:4px;">想定回答</label>
+            <textarea id="newAnswer" rows="4" placeholder="想定回答..." style="width:100%; margin-bottom:10px;"></textarea>
+            <div style="text-align:right;">
+                <button class="btn btn-outline" onclick="closeAddModal()">キャンセル</button>
+                <button class="btn btn-primary" onclick="addCard()">追加</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const rawQuestions = [
+            "3分で自己紹介をお願いします。", "1分で自己紹介してください。", "現在の職務経歴を簡単に説明してください。", "IT実務経験は何年ですか？",
+            "なぜIT業界を選びましたか？", "日本語での業務対応は可能ですか？", "ご自身の強みを教えてください。", "弱み、または改善している点を教えてください。",
+            "得意な技術は何ですか？", "担当したフェーズ、作業工程、担当範囲を教えてください。", "一番得意な工程は何ですか？", "今後どのような案件で成長したいですか？",
+            "直近の現場が終了する理由を教えてください。", "フル常駐は可能ですか？", "残業はどのくらい可能ですか？", "現在の並行状況はいかがですか？",
+            "帰国予定はありますか？", "第1プロジェクトを紹介してください。", "第1プロジェクトでは、在庫検索画面をどのように改修しましたか？", "第1プロジェクトで苦労した点は何ですか？",
+            "第2プロジェクトを紹介してください。", "第2プロジェクトの契約検索機能について説明してください。", "第2プロジェクトではOracleとSQL Serverをどのように使いましたか？", "第3プロジェクトを紹介してください。",
+            "第3プロジェクトの会員検索機能について説明してください。", "第3プロジェクトの権限制御について説明してください。", "第3プロジェクトの申請ステータス管理について説明してください。", "第4プロジェクトを紹介してください。",
+            "第4プロジェクトの勤怠申請機能について説明してください。", "第4プロジェクトの承認・差戻し処理について説明してください。", "第4プロジェクトでAWS S3、JP1、TeraTermをどのように使いましたか？", "4つの案件の中で一番自信がある案件はどれですか？",
+            "案件ごとの成長を説明してください。", "詳細設計の経験はありますか？", "詳細設計書はどうやって書きましたか？", "基本設計と詳細設計の違いを教えてください。",
+            "詳細設計書の中には、どのような内容を書きましたか？", "詳細設計書を何本くらい作成・修正しましたか？新規と改修の内訳も教えてください。", "なぜ詳細設計書を改修しましたか？", "詳細設計書は誰がレビューしましたか？どのように進めましたか？",
+            "詳細設計書を書く時に難しかったことは何ですか？", "1本の詳細設計書を作成するには、どれくらい時間がかかりますか？", "他人の設計書をレビューした経験はありますか？レビュアーの経験はありますか？", "要件定義の経験はありますか？",
+            "基本設計の経験はありますか？", "DB設計の経験はありますか？", "製造経験について説明してください。", "既存コードや現行コードを見て、改修・追加開発できますか？",
+            "システムを0から設計・製造した経験はありますか？", "Controller、Service、Mapperの役割を説明してください。", "MVCについて説明してください。", "Spring Bootを使った経験を説明してください。",
+            "Spring MVCとSpring Bootの違いを説明してください。", "MyBatisを使った経験を説明してください。", "JSPとThymeleafの違いを説明してください。", "JavaScript、jQuery、Ajaxの経験を説明してください。",
+            "JSONとは何ですか？どこで使いましたか？", "ページング処理はどう実装しましたか？", "入力チェックはどこで行いましたか？", "一覧表示機能の実装経験はありますか？",
+            "ファイルアップロードの経験はありますか？", "バッチ処理やSpring Batchの経験はありますか？", "APIを開発した経験はありますか？", "画面開発とバックエンド開発では、どちらが得意ですか？",
+            "例外処理では何に注意しましたか？", "トランザクションについて説明してください。", "どのデータベースを使用しましたか？", "SQL文は得意ですか？どのようなコマンドを使えますか？",
+            "今まで最大で何テーブルを結合しましたか？", "一番長いSQL文は何行くらいでしたか？", "SQLのチューニング、パフォーマンス向上、最適化の経験はありますか？", "テーブル設計の経験はありますか？",
+            "論理削除と物理削除の違いを説明してください。", "MyBatis XMLで注意したことは何ですか？", "DB作業で気をつけていることは何ですか？", "単体テストシナリオ、または単体テスト仕様書を作成した経験はありますか？",
+            "単体テストはどうやって行いましたか？", "画面テストの経験はありますか？", "JUnitの経験はありますか？", "結合テストの経験はありますか？",
+            "テストデータは自分で準備しましたか？", "テストで一番注意していることは何ですか？", "バグが発生したら、どうやって解決しますか？", "バグを減らすために心がけていることは何ですか？",
+            "一番難しかった不具合は何ですか？", "1日に何件くらい不具合対応できますか？", "Gitでは、どのような操作ができますか？", "Mavenは何に使いましたか？",
+            "開発ツールは何を使いましたか？", "Linuxコマンドは使えますか？", "Shell Scriptの経験はありますか？", "A5:SQL Mk-2やSQL Developerは、どのように使いましたか？",
+            "AWS、Azure、GCPなどのクラウド経験はありますか？", "開発手法は何でしたか？", "技術的に分からないことがあった場合、どう解決しますか？", "報告・連絡・相談で意識していることは何ですか？",
+            "不具合票、またはRedmineを使った経験はありますか？", "セキュリティ面で注意していることはありますか？", "個人情報を扱うシステムで注意することは何ですか？", "大手SIerのプロジェクトに参画した経験はありますか？",
+            "現場で自社名や顧客名を聞かれたらどう答えますか？", "今回の案件に入場前、何を勉強すればよいですか？と逆質問したいです。", "面談の最後に逆質問してください。"
+        ];
+
+        let initialQA = rawQuestions.map((q, idx) => ({
+            id: idx + 1,
+            title: q,
+            category: idx < 12 ? "自己紹介" : (idx < 17 ? "稼働・条件" : (idx < 33 ? "プロジェクト" : "設計・技術")),
+            starred: false,
+            answer: `【鄭宇翔の回答案】\n${q}についての回答をここに記載します。`
+        }));
+
+        let qaData = JSON.parse(localStorage.getItem('qa_data_v3')) || initialQA;
+
+        function saveToStorage() {
+            // 自動依照 id 排序，保證列表永遠由小到大顯示
+            qaData.sort((a, b) => a.id - b.id);
+            localStorage.setItem('qa_data_v3', JSON.stringify(qaData));
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const starredCount = qaData.filter(d => d.starred).length;
+            const percentage = qaData.length > 0 ? (starredCount / qaData.length) * 100 : 0;
+            document.getElementById('progressBar').style.width = `${percentage}%`;
+        }
+
+        function renderList(items) {
+            const container = document.getElementById('qaList');
+            container.innerHTML = '';
+            items.forEach((item) => {
+                const card = document.createElement('div');
+                card.className = 'qa-card';
+                card.id = `card-${item.id}`;
+                card.innerHTML = `
+                    <div class="qa-header" onclick="toggleCard(${item.id})">
+                        <div class="qa-title-box">
+                            <span class="star-btn ${item.starred ? 'starred' : ''}" onclick="toggleStar(${item.id}, event)">★</span>
+                            <span style="font-weight:bold; min-width:30px;">${item.id}</span>
+                            <span style="font-weight:600;">${item.title}</span>
+                        </div>
+                        <div>
+                            <span class="badge badge-cat">${item.category}</span>
+                        </div>
+                    </div>
+                    <div class="qa-body">
+                        <div id="text-${item.id}" class="answer-text">${item.answer}</div>
+                        <textarea id="edit-${item.id}" class="answer-editor">${item.answer}</textarea>
+                        <div style="text-align:right; margin-top:10px;">
+                            <button class="btn btn-danger" style="padding:4px 8px; font-size:12px;" onclick="deleteCard(${item.id}, event)">削除</button>
+                            <button class="btn btn-outline" style="padding:4px 8px; font-size:12px;" onclick="copyAnswer(${item.id}, event)">コピー</button>
+                            <button id="btn-edit-${item.id}" class="btn btn-outline" style="padding:4px 8px; font-size:12px;" onclick="enableEdit(${item.id}, event)">編集</button>
+                            <button id="btn-save-${item.id}" class="btn btn-primary" style="padding:4px 8px; font-size:12px; display:none;" onclick="saveEdit(${item.id}, event)">保存</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function toggleCard(id) { document.getElementById(`card-${id}`).classList.toggle('open'); }
+        function toggleStar(id, e) {
+            e.stopPropagation();
+            const target = qaData.find(d => d.id === id);
+            if (target) {
+                target.starred = !target.starred;
+                saveToStorage();
+                filterData();
+            }
+        }
+
+        function filterData() {
+            const cat = document.getElementById('categorySelect').value;
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = qaData.filter(item => {
+                const matchCat = (cat === 'すべて') || (cat === '★ お気に入り' && item.starred) || (item.category === cat);
+                const matchSearch = !search || item.title.toLowerCase().includes(search) || item.answer.toLowerCase().includes(search);
+                return matchCat && matchSearch;
+            });
+            renderList(filtered);
+        }
+
+        function enableEdit(id, e) {
+            e.stopPropagation();
+            document.getElementById(`text-${id}`).style.display = 'none';
+            document.getElementById(`edit-${id}`).style.display = 'block';
+            document.getElementById(`btn-edit-${id}`).style.display = 'none';
+            document.getElementById(`btn-save-${id}`).style.display = 'inline-block';
+        }
+
+        function saveEdit(id, e) {
+            e.stopPropagation();
+            const val = document.getElementById(`edit-${id}`).value;
+            const target = qaData.find(d => d.id === id);
+            if (target) {
+                target.answer = val;
+                saveToStorage();
+                document.getElementById(`text-${id}`).innerText = val;
+                document.getElementById(`text-${id}`).style.display = 'block';
+                document.getElementById(`edit-${id}`).style.display = 'none';
+                document.getElementById(`btn-edit-${id}`).style.display = 'inline-block';
+                document.getElementById(`btn-save-${id}`).style.display = 'none';
+            }
+        }
+
+        function deleteCard(id, e) {
+            e.stopPropagation();
+            if (confirm(`Q${id} を削除してもよろしいですか？\n※削除後、以降の質問番号は自動的に繰り上がります。`)) {
+                qaData = qaData.filter(d => d.id !== id);
+                // 刪除後，後面的 id 自動 -1 遞補
+                qaData.forEach(d => {
+                    if (d.id > id) d.id -= 1;
+                });
+                saveToStorage();
+                filterData();
+            }
+        }
+
+        function copyAnswer(id, e) {
+            e.stopPropagation();
+            navigator.clipboard.writeText(document.getElementById(`text-${id}`).innerText);
+            alert("コピーしました！");
+        }
+
+        function randomQuestion() {
+            if (qaData.length === 0) return;
+            const random = qaData[Math.floor(Math.random() * qaData.length)];
+            document.getElementById('randomNum').innerText = `Q${random.id} [${random.category}]`;
+            document.getElementById('randomTitle').innerText = random.title;
+            document.getElementById('randomAnswer').innerText = random.answer;
+            document.getElementById('randomAnswer').style.display = 'none';
+            document.getElementById('randomModal').classList.add('active');
+        }
+
+        function toggleRandomAnswer() {
+            const el = document.getElementById('randomAnswer');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function closeRandomModal() { document.getElementById('randomModal').classList.remove('active'); }
+        function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
+
+        function exportData() {
+            const blob = new Blob([JSON.stringify(qaData, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `interview_qa_backup_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.onchange = e => {
+                const reader = new FileReader();
+                reader.onload = event => {
+                    qaData = JSON.parse(event.target.result);
+                    saveToStorage();
+                    filterData();
+                    alert("データを復元しました！");
+                };
+                reader.readAsText(e.target.files[0]);
+            };
+            input.click();
+        }
+
+        function openAddModal() { 
+            // 預設將挿入編號設為「最大題號 + 1」
+            const nextId = qaData.length > 0 ? Math.max(...qaData.map(d => d.id)) + 1 : 1;
+            document.getElementById('newId').value = nextId;
+            document.getElementById('addModal').classList.add('active'); 
+        }
+        function closeAddModal() { document.getElementById('addModal').classList.remove('active'); }
+        
+        function addCard() {
+            const title = document.getElementById('newTitle').value.trim();
+            if (!title) {
+                alert("質問タイトルを入力してください。");
+                return;
+            }
+
+            let targetId = parseInt(document.getElementById('newId').value, 10);
+            const maxId = qaData.length > 0 ? Math.max(...qaData.map(d => d.id)) : 0;
+
+            if (isNaN(targetId) || targetId < 1) targetId = maxId + 1;
+
+            // 插隊核心邏輯：如果輸入的編號小於等於現有最大號碼，原本 >= targetId 的題目全部 +1
+            if (targetId <= maxId) {
+                qaData.forEach(d => {
+                    if (d.id >= targetId) {
+                        d.id += 1;
+                    }
+                });
+            } else {
+                targetId = maxId + 1; // 若數字太大則自動放在最後
+            }
+
+            qaData.push({
+                id: targetId,
+                title: title,
+                category: document.getElementById('newCat').value,
+                starred: false,
+                answer: document.getElementById('newAnswer').value.trim() || `【鄭宇翔の回答案】\n${title}についての回答です。`
+            });
+
+            saveToStorage();
+            closeAddModal();
+            filterData();
+
+            // 清空欄位
+            document.getElementById('newTitle').value = '';
+            document.getElementById('newAnswer').value = '';
+        }
+
+        renderList(qaData);
+        updateProgress();
+    </script>
+</body>
+</html>
